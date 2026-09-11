@@ -6,7 +6,7 @@
 
 # Cartesi CLI
 
-[![npm alpha](https://img.shields.io/npm/v/@cartesi/cli/alpha?label=npm%20alpha)](https://www.npmjs.com/package/@cartesi/cli)
+[![npm](https://img.shields.io/npm/v/@cartesi/cli)](https://www.npmjs.com/package/@cartesi/cli)
 [![CLI](https://github.com/cartesi/cli/actions/workflows/cli.yaml/badge.svg)](https://github.com/cartesi/cli/actions/workflows/cli.yaml)
 [![License](https://img.shields.io/github/license/cartesi/cli)](LICENSE)
 
@@ -39,7 +39,7 @@ Create, build, run, and interact with [Cartesi](https://cartesi.io) applications
 Install the CLI, verify your development environment, and create an application:
 
 ```sh
-npm install -g @cartesi/cli@alpha
+npm install -g @cartesi/cli
 cartesi doctor
 cartesi create hello --template python
 cd hello
@@ -57,28 +57,21 @@ cartesi address-book
 
 ## Requirements
 
-- Docker Desktop, or Docker Engine 25.0.0 or later on Linux
-- Docker Compose 2.24.0 or later
-- Docker Buildx 0.13.0 or later
-- `linux/riscv64` emulation for Docker builds
+- [Docker Desktop](https://docs.docker.com/desktop/) 4.x, including Docker Compose and Buildx
 - Node.js 20 or later when installing through npm
 
-Enable RISC-V emulation if it is not already available:
+Cartesi application images target `linux/riscv64`. Docker Desktop provides the cross-platform build support used by the CLI; this guide does not support a standalone Docker Engine installation.
 
-```sh
-docker run --privileged --rm tonistiigi/binfmt:riscv
-```
-
-Run `cartesi doctor` after installation to check Docker, Compose, Buildx, and RISC-V support.
+Run `cartesi doctor` after installation to check the local development tools.
 
 ## Installation
 
 ### npm
 
-Install the current prerelease from the npm alpha channel:
+Install the current release from npm:
 
 ```sh
-npm install -g @cartesi/cli@alpha
+npm install -g @cartesi/cli
 ```
 
 ### Standalone binaries
@@ -120,7 +113,7 @@ cartesi doctor
 | `clean`                               | Delete cached build artifacts                                        |
 | `doctor`                              | Check local prerequisites                                            |
 
-The `deploy` command is deprecated in 2.0. Use `cartesi-rollups-cli` directly when deploying to a public network.
+The `deploy` command is deprecated in 2.0. The `cartesi` CLI is intended for application development, while `cartesi-rollups-cli`, distributed with the Rollups Node, deploys and registers applications and manages node-side configuration on public networks. Follow the [self-hosted deployment guide](https://docs.cartesi.io/cartesi-rollups/2.0/deployment/self-hosted/standard/) for the complete workflow.
 
 Run `cartesi <command> --help` for the complete, current option set. The hosted [CLI command reference](https://docs.cartesi.io/get-started/cli-commands/) provides a general overview.
 
@@ -137,6 +130,8 @@ builder = "docker"
 dockerfile = "Dockerfile"
 format = "ext2"
 ```
+
+See the maintained [`cartesi.toml.example`](docs/cartesi.toml.example) for a complete, parser-aligned configuration reference and the [advanced configuration guide](https://docs.cartesi.io/cartesi-rollups/2.0/development/Advanced-configuration/) for explanations of the available settings.
 
 Multiple configuration files can be supplied with repeated `--config` options. Later files extend or override values from earlier files.
 
@@ -250,6 +245,7 @@ Releases are managed with [Changesets](https://github.com/changesets/changesets)
 
 - [Cartesi documentation](https://docs.cartesi.io/)
 - [CLI command reference](https://docs.cartesi.io/get-started/cli-commands/)
+- [Advanced `cartesi.toml` configuration](https://docs.cartesi.io/cartesi-rollups/2.0/development/Advanced-configuration/)
 - [CLI changelog](apps/cli/CHANGELOG.md)
 
 Individual packages may contain additional README files under `apps/` and `packages/`.

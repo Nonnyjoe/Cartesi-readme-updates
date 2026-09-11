@@ -1,0 +1,90 @@
+# Copy this file to cartesi.toml in the application root.
+#
+# The CLI selects a compatible Cartesi SDK image by default. To make builds
+# reproducible across CLI upgrades, pin the SDK image used by your release:
+#
+# sdk = "cartesi/sdk:<version>"
+
+[machine]
+ram_length = "256Mi"
+use_docker_env = true
+use_docker_workdir = true
+
+# Other supported machine settings include:
+# entrypoint = "/usr/local/bin/app"
+# boot_args = ["no4lvl", "quiet", "earlycon=sbi", "console=hvc0"]
+# max_mcycle = 2305843009213693952
+# ram_image = "/usr/share/cartesi-machine/images/linux.bin"
+# assert_rolling_template = true
+# user = "dapp"
+# env_file = ".env.cartesi"
+
+# Define or override values inherited from the Docker image.
+[machine.env]
+LOG_LEVEL = "info"
+
+# The root drive contains the operating system and application.
+[drives.root]
+builder = "docker"
+context = "."
+dockerfile = "Dockerfile"
+format = "ext2"
+extra_size = "64Mi"
+# build_args = ["APP_ENV=production"]
+# image = "example/application:latest"
+# tags = ["example/application:cartesi"]
+# target = "runtime"
+# mount = "/"
+# shared = false
+# user = "dapp"
+
+# A writable data drive mounted inside the Cartesi Machine.
+[drives.data]
+builder = "empty"
+format = "ext2"
+size = "128Mi"
+mount = "/var/lib/app"
+# shared = false
+# user = "dapp"
+
+# Additional drives can use one of the following builders. Uncomment only the
+# drives needed by the application and ensure the referenced paths exist.
+#
+# [drives.assets]
+# builder = "directory"
+# directory = "./assets"
+# format = "sqfs"
+# extra_size = "32Mi"
+# mount = "/opt/assets"
+# shared = false
+# user = "dapp"
+#
+# [drives.archive]
+# builder = "tar"
+# filename = "./data/archive.tar"
+# format = "ext2"
+# extra_size = "32Mi"
+# mount = "/mnt/archive"
+# shared = false
+# user = "dapp"
+#
+# [drives.prebuilt]
+# builder = "none"
+# filename = "./data/reference.sqfs"
+# mount = "/opt/reference"
+# shared = false
+# user = "dapp"
+
+# Emergency-withdrawal applications can also define the section below. All
+# fields are required. Replace every example value so that it matches the
+# deployed contracts and the application's accounts-drive layout.
+#
+# [withdrawal.config]
+# guardian = "0x1111111111111111111111111111111111111111"
+# log2_leaves_per_account = 8
+# log2_max_num_of_accounts = 20
+# accounts_drive_start_index = 1
+# withdrawal_output_builder = "0x2222222222222222222222222222222222222222"
+#
+# See:
+# https://docs.cartesi.io/cartesi-rollups/2.0/api-reference/backend/emergency-withdrawal/

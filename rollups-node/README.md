@@ -1,19 +1,19 @@
 <br>
 <p align="center">
-    <img src="docs/images/cartesi-logo.png" align="center" width="20%">
+    <img src="docs/images/cartesi-logo.png" align="center" width="20%" alt="Cartesi">
 </p>
 <br>
 
 # Cartesi Rollups Node
 
 [![Latest release](https://img.shields.io/github/v/release/cartesi/rollups-node?include_prereleases)](https://github.com/cartesi/rollups-node/releases)
-[![Build](https://github.com/cartesi/rollups-node/actions/workflows/build.yml/badge.svg?branch=next/2.0)](https://github.com/cartesi/rollups-node/actions/workflows/build.yml)
+[![Build](https://github.com/cartesi/rollups-node/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/cartesi/rollups-node/actions/workflows/build.yml)
 [![License](https://img.shields.io/github/license/cartesi/rollups-node)](LICENSE)
 
 Cartesi Rollups Node is the reference middleware connecting Cartesi Rollups contracts, application back ends running inside Cartesi Machines, and application clients. It reads on-chain inputs, advances application state, stores outputs, reports, claims, and proofs in PostgreSQL, submits claims when enabled, and exposes JSON-RPC and Inspect APIs for querying application state.
 
-> [!WARNING]
-> The 2.0 release line is currently in alpha. Interfaces, configuration, database schemas, and deployment procedures may change between releases. Before upgrading, review [GitHub Releases](https://github.com/cartesi/rollups-node/releases) and compare the target tag with your currently deployed version.
+> [!IMPORTANT]
+> Before upgrading, review [GitHub Releases](https://github.com/cartesi/rollups-node/releases) and compare the target release with the version currently deployed. Use compatible node, Cartesi Machine emulator, CLI, snapshot, and proof-tool versions throughout a deployment.
 
 <details>
 <summary><strong>Table of contents</strong> — click to expand</summary>
@@ -46,7 +46,7 @@ The node connects four parts of a Cartesi Rollups deployment:
 - **PostgreSQL:** stores applications, inputs, outputs, reports, epochs, claims, proofs, and operational state.
 - **Application clients:** submit inputs through the base layer, query indexed state through JSON-RPC, and send read-only requests through the Inspect API.
 
-![Cartesi Rollups architecture showing advance, inspect, query, and claim routes](docs/images/cartesi-rollups-architecture.png)
+![Cartesi Rollups architecture showing advance, inspect, query, claim, and PRT routes](docs/images/cartesi-rollups-architecture.png)
 
 Advance requests are submitted to the on-chain `InputBox`, read by the node, executed by the application machine, and persisted with their outputs and reports. The validator computes epoch claims and output proofs. The claimer submits Authority or Quorum claims, while the PRT service participates in Dave tournaments.
 
@@ -90,11 +90,11 @@ docker compose down -v
 
 ### Debian package
 
-The release workflow publishes amd64 and arm64 packages. Install the matching Cartesi Machine emulator before installing the node package:
+The release workflow publishes amd64 and arm64 packages. Choose a node release and its compatible Cartesi Machine emulator release, then replace the values below before installing:
 
 ```sh
-VERSION=2.0.0-alpha.12
-EMULATOR_VERSION=0.21.0
+VERSION="<node-version>"
+EMULATOR_VERSION="<compatible-emulator-version>"
 ARCH="$(dpkg --print-architecture)"
 
 curl -fLO "https://github.com/cartesi/machine-emulator/releases/download/v${EMULATOR_VERSION}/machine-emulator_${ARCH}.deb"
@@ -120,7 +120,7 @@ docker run --rm cartesi/rollups-node:devel cartesi-rollups-node --version
 Source builds require Go 1.26.3 or later, GNU Make, a C toolchain, `pkg-config`, OpenSSL development files, and Cartesi Machine emulator headers and libraries.
 
 ```sh
-git clone --branch next/2.0 https://github.com/cartesi/rollups-node.git
+git clone https://github.com/cartesi/rollups-node.git
 cd rollups-node
 make build
 sudo make install
@@ -287,14 +287,14 @@ cartesi-rollups-cli db check-version
 | `contract`                                  | Experimentally query on-chain contract state directly                                                                                  |
 | `foreclose`, `prove-drive-root`, `withdraw` | Perform the application foreclosure and withdrawal workflow                                                                            |
 
-Run `cartesi-rollups-cli --help` or generate the complete command reference with `make generate-cli-docs`.
+Run `cartesi-rollups-cli --help` or generate the complete command reference with `make generate-cli-docs`. For the complete foreclosure and withdrawal workflow, see the [Emergency Withdrawal Recovery Guide](https://docs.cartesi.io/cartesi-rollups/2.0/development/emergency-withdrawal/recovery-guide/).
 
 ### `cartesi-rollups-machine-tool`
 
 - `replay` replays accepted database inputs into a machine template and stores the resulting machine.
 - `prove accounts-drive` generates an accounts-drive root proof and an account withdrawal proof from a stored snapshot.
 
-Run `cartesi-rollups-machine-tool --help` for all required flags.
+Run `cartesi-rollups-machine-tool --help` for all required flags. Use the machine tool from the same release as the node because snapshot and proof formats may change together.
 
 ## Architecture and repository layout
 

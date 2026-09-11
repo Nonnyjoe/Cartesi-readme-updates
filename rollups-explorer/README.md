@@ -47,7 +47,7 @@ The explorer can:
 - save node connections and ABI-based decoding specifications in the browser; and
 - visualize tournaments and matches for applications using PRT consensus.
 
-The current 2.0 explorer accepts Rollups Node versions in the `^2.0.0-alpha.12` range (`>=2.0.0-alpha.12 <3.0.0`). When establishing a connection, the explorer validates the version and chain ID reported by the Rollups Node. It checks that the configured Ethereum RPC responds, but it does not independently verify that the RPC uses the same chain.
+The explorer validates the Rollups Node version against the supported semantic-version range maintained in its [version compatibility check](https://github.com/cartesi/rollups-explorer/blob/main/apps/explorer/src/lib/supportedRollupsNode.ts). When establishing a connection, it also validates the chain ID reported by the node. It checks that the configured Ethereum RPC responds, but it does not independently verify that the RPC uses the same chain.
 
 ## Quick start
 
@@ -58,11 +58,13 @@ The fastest way to run Explorer 2.0 is with an explicitly versioned Docker image
 - Docker when running the published container.
 
 ```sh
+EXPLORER_VERSION="<release-version>"
+
 docker run --rm --name cartesi-rollups-explorer \
   -p 3000:3000 \
   -e CARTESI_NODE_RPC_URL=http://127.0.0.1:6751/rpc \
   -e NODE_RPC_URL=http://127.0.0.1:6751/anvil \
-  cartesi/rollups-explorer:2.0.0-alpha.3
+  "cartesi/rollups-explorer:${EXPLORER_VERSION}"
 ```
 
 Open [http://localhost:3000/explorer](http://localhost:3000/explorer).
