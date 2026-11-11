@@ -44,14 +44,15 @@ The explorer can:
 - submit application inputs through the on-chain `InputBox`;
 - deposit Ether, ERC-20, ERC-721, and ERC-1155 assets through the Cartesi Portals;
 - inspect decoded output data and execute eligible vouchers with a connected wallet;
+- refund deposits that were not finalized before an application was foreclosed;
 - save node connections and ABI-based decoding specifications in the browser; and
-- visualize tournaments and matches for applications using PRT consensus.
+- visualize tournaments, matches, and the bond ledger for applications using PRT consensus, and perform permissionless PRT actions such as bond recovery and match timeouts.
 
-The explorer validates the Rollups Node version against the supported semantic-version range maintained in its [version compatibility check](https://github.com/cartesi/rollups-explorer/blob/main/apps/explorer/src/lib/supportedRollupsNode.ts). When establishing a connection, it also validates the chain ID reported by the node. It checks that the configured Ethereum RPC responds, but it does not independently verify that the RPC uses the same chain.
+The explorer validates the Rollups Node version against the supported semantic-version range maintained in its [version compatibility check](https://github.com/cartesi/rollups-explorer/blob/main/apps/explorer/src/lib/supportedRollupsNode.ts) (`^2.0.0-alpha.13` at v2.0.0-alpha.5). When establishing a connection, it also validates the chain ID reported by the node. It checks that the configured Ethereum RPC responds, but it does not independently verify that the RPC uses the same chain.
 
 ## Quick start
 
-The fastest way to run Explorer 2.0 is with an explicitly versioned Docker image. You need:
+The fastest way to run Rollups Explorer 2.x is with an explicitly versioned Docker image. You need:
 
 - a compatible Cartesi Rollups Node JSON-RPC endpoint;
 - an Ethereum JSON-RPC endpoint for the same chain; and
@@ -84,7 +85,7 @@ The published container is built to serve the application below `/explorer` and 
 | `CARTESI_NODE_RPC_URL`   | Default Rollups Node v2 JSON-RPC endpoint                                        | `http://127.0.0.1:6751/rpc`   |
 | `NODE_RPC_URL`           | Base-layer Ethereum RPC endpoint used for wallet interactions and contract reads | `http://127.0.0.1:6751/anvil` |
 | `DEBUG_ENABLED`          | Enable debugging actions in the interface                                        | `false`                       |
-| `HEALTHZ_UPTIME_ENABLED` | Include process uptime in the health response                                    | `true`                        |
+| `HEALTHZ_UPTIME_ENABLED` | Include process uptime in the health response                                    | `true` (code default `false`) |
 
 The application exposes its health endpoint at `/explorer/api/healthz` in the published container.
 
@@ -106,13 +107,13 @@ The following values are embedded by Next.js and cannot be reliably changed by p
 | `NEXT_PUBLIC_PROJECT_ID`           | WalletConnect Cloud project ID                                            |
 | `NEXT_PUBLIC_IS_CONTAINER`         | Enables loading runtime configuration from `/api/config`                  |
 
-Mock fixtures must be enabled at build time with `NEXT_PUBLIC_MOCK_ENABLED=true`; setting `MOCK_ENABLED` only at container runtime does not populate the client-side fixture cache.
+Mock fixtures are bundled at build time with `NEXT_PUBLIC_MOCK_ENABLED=true`.
 
-The Docker build argument `ENVIRONMENT=cartesi` selects `apps/explorer/.env.cartesi`, which sets the base path to `/explorer` and enables container runtime configuration.
+The Docker build argument `ENVIRONMENT` selects the `apps/explorer/.env.<environment>` file baked into the image. The Dockerfile defaults to `localhost`; the bake file used for releases sets `cartesi`, which sets the base path to `/explorer` and enables container runtime configuration.
 
 ## How it works
 
-The Explorer 2.0 application does not require a separate explorer database or GraphQL backend.
+The Rollups Explorer 2.x application does not require a separate explorer database or GraphQL backend.
 
 | Flow                   | Path                                                                                    |
 | ---------------------- | --------------------------------------------------------------------------------------- |
@@ -203,13 +204,23 @@ pnpm storybook --filter=explorer
 
 This repository uses a Turborepo workspace. Remove `--filter=explorer` only when you intentionally want a task to run across all participating applications and packages. See [docs/MONOREPO.md](docs/MONOREPO.md) for workspace operations.
 
+### Unreleased rollups-ts packages
+
+To develop against unreleased [rollups-ts](https://github.com/cartesi/rollups-ts) changes, build and pack them from a local checkout into `vendor/` (defaults to `client`, `react`, `rpc`, and `codec`):
+
+```sh
+pnpm dev:vendor:rollups-ts ../rollups-ts [package ...]
+```
+
+Then point the dependencies at the tarballs through `overrides` in `pnpm-workspace.yaml` and run `pnpm install`. Commit `vendor/`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` in a dedicated commit, and remove them again once the packages are published; vendored tarballs must not be merged.
+
 ### Dependency safeguards
 
 The pnpm workspace enables several supply-chain controls:
 
 - lifecycle and build scripts must be explicitly approved through `allowBuilds`;
 - `strictDepBuilds` fails installation when a dependency requests an unapproved build;
-- dependencies must normally have been published for at least seven days;
+- dependencies must normally have been published for at least seven days (`minimumReleaseAge`), with named exceptions for the pinned `@cartesi/client`, `@cartesi/react`, and `@cartesi/rpc` prereleases;
 - `trustPolicy: no-downgrade` rejects weaker publishing-trust evidence; and
 - exotic transitive sources such as Git repositories and direct tarball URLs are blocked.
 
@@ -228,21 +239,21 @@ pnpm test:ci --filter=explorer
 pnpm build --filter=explorer
 ```
 
-`test:ci` generates coverage. The repository's Playwright end-to-end suite currently targets the legacy `apps/web` CartesiScan application, so it is not part of the Explorer 2.0 development loop.
+`test:ci` generates coverage. The repository's Playwright end-to-end suite currently targets the legacy `apps/web` CartesiScan application, so it is not part of the Rollups Explorer 2.x development loop.
 
 ## Apps and packages
 
-### Explorer 2.0 and shared configuration
+### Rollups Explorer 2.x and shared configuration
 
 | Path                             | Purpose                                                                                                                   |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `apps/explorer`                  | Next.js Explorer 2.0 application, including node connections, wallet interactions, output decoding, and PRT visualization |
+| `apps/explorer`                  | Next.js Rollups Explorer 2.x application, including node connections, wallet interactions, output decoding, and PRT visualization |
 | `packages/eslint-config-cartesi` | Shared ESLint configuration                                                                                               |
 | `packages/tsconfig`              | Shared TypeScript configuration                                                                                           |
 
 ### Legacy CartesiScan
 
-The repository also contains CartesiScan, which is being phased out in favor of Explorer 2.0:
+The repository also contains CartesiScan, which is being phased out in favor of Rollups Explorer 2.x:
 
 | Path                     | Purpose                                               |
 | ------------------------ | ----------------------------------------------------- |
