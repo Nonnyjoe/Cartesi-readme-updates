@@ -83,7 +83,7 @@ docker compose down -v
 ### Runtime requirements
 
 - Linux on amd64 or arm64 for the provided container and Debian workflows
-- Cartesi Machine emulator 0.21.x
+- The Cartesi Machine emulator release the node package depends on (0.21.x for v2.0.0-alpha.13; the Debian package declares the exact range)
 - PostgreSQL; version 18 is used by development and CI
 - An Ethereum JSON-RPC HTTP endpoint
 - A funded, authorized signer when claim submission is enabled
@@ -117,7 +117,7 @@ docker run --rm cartesi/rollups-node:devel cartesi-rollups-node --version
 
 ### From source
 
-Source builds require Go 1.26.3 or later, GNU Make, a C toolchain, `pkg-config`, OpenSSL development files, and Cartesi Machine emulator headers and libraries.
+Source builds require Go 1.27.1 or later, GNU Make, a C toolchain, `pkg-config`, OpenSSL development files, and Cartesi Machine emulator headers and libraries.
 
 ```sh
 git clone https://github.com/cartesi/rollups-node.git
@@ -140,6 +140,8 @@ export CARTESI_BLOCKCHAIN_ID="${CHAIN_ID:?set CHAIN_ID}"
 export CARTESI_DATABASE_CONNECTION="${DATABASE_URL:?set DATABASE_URL}"
 export CARTESI_AUTH_KIND=mnemonic
 export CARTESI_AUTH_MNEMONIC_FILE=/run/secrets/cartesi_mnemonic
+export CARTESI_PRT_AUTH_KIND=mnemonic
+export CARTESI_PRT_AUTH_MNEMONIC_FILE=/run/secrets/cartesi_mnemonic
 
 cartesi-rollups-cli db init
 ```
@@ -178,7 +180,7 @@ Other deployment modes, such as using an existing consensus contract or deployin
 
 Each service is also available as an individual `cartesi-rollups-*` binary. Use this mode when services need separate resource limits, failure domains, or scaling policies. All processes coordinate through the same PostgreSQL database.
 
-[`compose.individual-services.yaml`](compose.individual-services.yaml) illustrates a split deployment for the EVM reader, advancer, validator, claimer, and JSON-RPC API. Add `cartesi-rollups-prt` explicitly when the deployment participates in Dave consensus.
+[`compose.individual-services.yaml`](compose.individual-services.yaml) illustrates a split deployment for the EVM reader, advancer, validator, claimer, PRT service, and JSON-RPC API.
 
 ## Configuration
 
@@ -189,15 +191,17 @@ The node is primarily configured through `CARTESI_*` environment variables. Serv
 | `CARTESI_BLOCKCHAIN_HTTP_ENDPOINT`         | Ethereum JSON-RPC endpoint                       | Required                                  |
 | `CARTESI_BLOCKCHAIN_ID`                    | Expected chain ID                                | Required                                  |
 | `CARTESI_DATABASE_CONNECTION`              | PostgreSQL connection URL                        | PostgreSQL driver defaults                |
-| `CARTESI_AUTH_KIND`                        | `private_key`, `mnemonic`, or `aws`              | `mnemonic`                                |
-| `CARTESI_FEATURE_CLAIM_SUBMISSION_ENABLED` | Submit claims and PRT transactions               | `true`                                    |
+| `CARTESI_AUTH_KIND`                        | Claimer signer: `private_key`, `mnemonic`, or `aws` | `mnemonic`                             |
+| `CARTESI_PRT_AUTH_KIND`                    | PRT signer, same kinds; must be a different address from the claimer | `mnemonic`        |
+| `CARTESI_PRT_AUTH_MNEMONIC_ACCOUNT_INDEX`  | Mnemonic account used by the PRT signer          | `6`                                       |
+| `CARTESI_FEATURE_CLAIM_SUBMISSION_ENABLED` | Submit claims and PRT transactions; saved at first start, cannot be changed on an existing database | `true` |
 | `CARTESI_SNAPSHOTS_DIR`                    | Machine snapshot directory                       | `/var/lib/cartesi-rollups-node/snapshots` |
-| `CARTESI_BLOCKCHAIN_DEFAULT_BLOCK`         | Block tag followed by chain readers              | `finalized`                               |
+| `CARTESI_BLOCKCHAIN_DEFAULT_BLOCK`         | Block tag followed by chain readers; saved at first start, cannot be changed on an existing database | `finalized` |
 | `CARTESI_LOG_LEVEL`                        | Global `debug`, `info`, `warn`, or `error` level | `info`                                    |
 | `CARTESI_JSONRPC_MAX_INFLIGHT`             | Concurrent JSON-RPC request limit                | `64`                                      |
 | `CARTESI_INSPECT_MAX_INFLIGHT`             | Concurrent Inspect request limit                 | `64`                                      |
 
-The endpoint, HTTP authorization header, database connection, mnemonic, and private key settings support generated `*_FILE` variants. For example, use `CARTESI_AUTH_KIND=mnemonic` with `CARTESI_AUTH_MNEMONIC_FILE=/path/to/secret`; the file source does not change the authentication kind.
+The endpoint, HTTP authorization header, database connection, mnemonic, and private key settings support generated `*_FILE` variants, for both the claimer (`CARTESI_AUTH_*`) and the PRT signer (`CARTESI_PRT_AUTH_*`). For example, use `CARTESI_AUTH_KIND=mnemonic` with `CARTESI_AUTH_MNEMONIC_FILE=/path/to/secret`; the file source does not change the authentication kind. The standalone node always starts the PRT service, so a PRT signer is required whenever claim submission is enabled, even for Authority or Quorum applications.
 
 `make env` prints the local development settings. Generate the complete configuration reference locally with:
 
@@ -286,6 +290,7 @@ cartesi-rollups-cli db check-version
 | `read`                                      | Read epochs, inputs, outputs, reports, commitments, tournaments, matches, match advances, and withdrawals                              |
 | `contract`                                  | Experimentally query on-chain contract state directly                                                                                  |
 | `foreclose`, `prove-drive-root`, `withdraw` | Perform the application foreclosure and withdrawal workflow                                                                            |
+| `refund`                                    | Refund a deposit that was not finalized before the application was foreclosed                                                          |
 
 Run `cartesi-rollups-cli --help` or generate the complete command reference with `make generate-cli-docs`. For the complete foreclosure and withdrawal workflow, see the [Emergency Withdrawal Recovery Guide](https://docs.cartesi.io/cartesi-rollups/2.0/development/emergency-withdrawal/recovery-guide/).
 
@@ -319,8 +324,10 @@ Reusable Go packages include:
 - `pkg/emulator`: CGo bindings for the Cartesi Machine emulator APIs
 - `pkg/machine`: machine runtime abstractions and computation-hash support
 - `pkg/contracts`: generated Go bindings for Rollups contracts
-- `pkg/jsonrpc`: JSON-RPC types and client support
+- `pkg/jsonrpc`: JSON-RPC client support
 - `pkg/inspectclient`: generated Inspect API client
+- `pkg/ethutil`: Ethereum helpers shared by the services and the CLI
+- `pkg/service`: the service lifecycle framework used by every binary
 
 ## Development
 
@@ -360,11 +367,11 @@ The project follows [Conventional Commits](https://www.conventionalcommits.org/)
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and follow the [Code of Conduct](CODE_OF_CONDUCT.md) in all project interactions. Credited authors are listed voluntarily in [AUTHORS](AUTHORS); the Git history and [GitHub contributors](https://github.com/cartesi/rollups-node/graphs/contributors) provide the broader contribution record.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [CHANGELOG](CHANGELOG.md) before opening a pull request, and follow the [Code of Conduct](CODE_OF_CONDUCT.md) in all project interactions. Credited authors are listed voluntarily in [AUTHORS](AUTHORS); the Git history and [GitHub contributors](https://github.com/cartesi/rollups-node/graphs/contributors) provide the broader contribution record.
 
 ## Security
 
-Do not disclose suspected vulnerabilities in a public issue. This repository does not yet contain a dedicated private-reporting policy; until one is added, email `info@cartesi.io` and request a private security-reporting channel before sending sensitive details.
+Do not open a public issue, pull request, or discussion for a security problem. Report it privately by email to [rollups@cartesi.foundation](mailto:rollups@cartesi.foundation) with the affected component and version, the impact and who is affected, and steps to reproduce. Email is not encrypted, so say so in the first message if the report contains sensitive material. The full policy, together with the published security reviews of the stack, is on the [Audit reports](https://docs.cartesi.io/get-started/audit-reports/) page.
 
 Keep mnemonic and private-key material out of environment dumps and command histories. Prefer the supported `*_FILE` settings or AWS KMS, restrict secret-file permissions, and avoid funding the node signer with more value than its role requires.
 

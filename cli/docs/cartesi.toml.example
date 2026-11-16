@@ -75,16 +75,37 @@ mount = "/var/lib/app"
 # shared = false
 # user = "dapp"
 
-# Emergency-withdrawal applications can also define the section below. All
-# fields are required. Replace every example value so that it matches the
-# deployed contracts and the application's accounts-drive layout.
+# NVRAMs are raw byte ranges exposed to the guest as /dev/uio0 to /dev/uio7
+# (at most 8), with no filesystem and no mount point. Give each one either a
+# size (a multiple of 4Ki) or an existing raw image file.
 #
-# [withdrawal.config]
+# [nvrams.state]
+# size = "64Ki"
+# shared = false
+# user = "dapp"
+#
+# [nvrams.seed]
+# filename = "./data/seed.raw"
+
+# Emergency-withdrawal applications mark exactly one drive or NVRAM as the
+# accounts drive. Its size must be a power of two, or set accounts_drive_size
+# to keep the accounts in the first bytes of a larger drive.
+#
+# [drives.accounts]
+# builder = "empty"
+# format = "raw"
+# size = "1Mi"
+# mount = "/var/lib/accounts"
+# accounts_drive = true
+# # accounts_drive_size = "512Ki"
+#
+# The optional [withdrawal] section then names the deployed contracts. Each
+# field has a devnet default, so it can be left out for local runs.
+#
+# [withdrawal]
 # guardian = "0x1111111111111111111111111111111111111111"
-# log2_leaves_per_account = 8
-# log2_max_num_of_accounts = 20
-# accounts_drive_start_index = 1
 # withdrawal_output_builder = "0x2222222222222222222222222222222222222222"
+# account_size = 32
 #
 # See:
 # https://docs.cartesi.io/cartesi-rollups/2.0/api-reference/backend/emergency-withdrawal/

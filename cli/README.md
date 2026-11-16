@@ -57,12 +57,12 @@ cartesi address-book
 
 ## Requirements
 
-- [Docker Desktop](https://docs.docker.com/desktop/) 4.x, including Docker Compose and Buildx
-- Node.js 20 or later when installing through npm
+- Docker Engine 25.0 or later with Docker Compose 2.24 or later and Buildx 0.13 or later; [Docker Desktop](https://docs.docker.com/desktop/) satisfies all three
+- Node.js 24 or later when installing through npm
 
-Cartesi application images target `linux/riscv64`. Docker Desktop provides the cross-platform build support used by the CLI; this guide does not support a standalone Docker Engine installation.
+Cartesi application images target `linux/riscv64`, so Docker must be able to build and run that platform. Docker Desktop provides this out of the box; a standalone Docker Engine needs the `tonistiigi/binfmt` RISC-V emulator installed.
 
-Run `cartesi doctor` after installation to check the local development tools.
+Run `cartesi doctor` after installation to check the versions and the `riscv64` platform support.
 
 ## Installation
 
@@ -112,6 +112,9 @@ cartesi doctor
 | `shell`                               | Open a shell inside the application machine                          |
 | `clean`                               | Delete cached build artifacts                                        |
 | `doctor`                              | Check local prerequisites                                            |
+| `foreclose`                           | Foreclose the local application as its guardian so users can withdraw |
+| `refund <input-index>`                | Refund a deposit that was not finalized before the foreclosure       |
+| `withdraw --account <address>`        | Withdraw an account's funds from a foreclosed application            |
 
 The `deploy` command is deprecated in 2.0. The `cartesi` CLI is intended for application development, while `cartesi-rollups-cli`, distributed with the Rollups Node, deploys and registers applications and manages node-side configuration on public networks. Follow the [self-hosted deployment guide](https://docs.cartesi.io/cartesi-rollups/2.0/deployment/self-hosted/standard/) for the complete workflow.
 
@@ -119,7 +122,7 @@ Run `cartesi <command> --help` for the complete, current option set. The hosted 
 
 ## Configuration
 
-Applications can be configured with `cartesi.toml`. Without one, the CLI uses a Docker-backed root drive, 128 MiB of machine RAM, and the other default machine settings. The following example increases the RAM to 256 MiB while explicitly retaining the default root-drive configuration:
+Applications can be configured with `cartesi.toml`. Without one, the CLI uses a Docker-backed root drive, 128 MiB of machine RAM, and the other default machine settings. Sizes accept IEC units such as `64Mi` and `4Ki`. The following example increases the RAM to 256 MiB while explicitly retaining the default root-drive configuration:
 
 ```toml
 [machine]
@@ -140,14 +143,17 @@ Useful `run` options include:
 | Option                            | Purpose                                                                        |
 | --------------------------------- | ------------------------------------------------------------------------------ |
 | `--prt`                           | Deploy the application with PRT consensus                                      |
-| `--block-time <seconds>`          | Set the local chain's block interval                                           |
-| `--epoch-length <blocks>`         | Set the Rollups epoch length                                                   |
-| `--claim-staging-period <blocks>` | Set the claim-staging period for Authority or Quorum consensus                 |
+| `--block-time <seconds>`          | Set the local chain's block interval (default `2`)                             |
+| `--epoch-length <blocks>`         | Set the Rollups epoch length (default `720`)                                   |
+| `--claim-staging-period <blocks>` | Set the claim-staging period in blocks for any consensus (default `0`)         |
 | `--fork-url <url>`                | Fork an existing Ethereum network                                              |
 | `--fork-block-number <number>`    | Fork at a specific block                                                       |
 | `--default-block <mode>`          | Use `latest`, `safe`, `pending`, or `finalized` as the default block for reads |
 | `--services <services>`           | Start optional comma-separated services                                        |
 | `--port <number>`                 | Select the proxy port                                                          |
+| `--cpus <number>`, `--memory <MB>` | Cap the node container; `withdraw` replays the machine and may need more       |
+| `--project-name <name>`           | Name the Docker Compose project and node instance                              |
+| `-c, --config <file>`             | Use a configuration file other than `cartesi.toml` (repeatable)                |
 | `--dry-run`                       | Print the generated configuration without starting it                          |
 
 Set supported `CARTESI_*` variables in the host environment before starting `cartesi run`; the CLI forwards the allow-listed values to the node. List the supported variables with:
@@ -202,7 +208,7 @@ The proxy prefers port `6751` and selects the next available port when necessary
 | `ruby`                     | Ruby                      |
 | `rust`                     | Rust                      |
 
-Templates are maintained in [cartesi/application-templates](https://github.com/cartesi/application-templates).
+Templates are maintained in [cartesi/application-templates](https://github.com/cartesi/application-templates). The CLI fetches them from the `prerelease/sdk-12` branch of that repository by default; pass `--branch <name>` to `cartesi create` to use another branch.
 
 ## Apps and packages
 
@@ -212,7 +218,6 @@ The repository is organized as a Bun monorepo containing the CLI application and
 | ----------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `apps/cli`                          | `@cartesi/cli`                      | Commander-based CLI distributed through npm and as native Linux and macOS binaries                                          |
 | `packages/sdk`                      | `@cartesi/sdk`                      | Docker image and supporting scripts for building and executing Cartesi applications                                         |
-| `packages/devnet`                   | `@cartesi/devnet`                   | Foundry deployment scripts, Cartesi contracts, test token contracts, and the initial Anvil state used by local environments |
 | `packages/mock-verifying-paymaster` | `@cartesi/mock-verifying-paymaster` | Mock ERC-4337 verifying paymaster used by optional account-abstraction services                                             |
 | `packages/tsconfig`                 | `tsconfig`                          | Shared TypeScript configurations used throughout the monorepo                                                               |
 
@@ -229,7 +234,7 @@ bun run lint
 bun run test
 ```
 
-The complete workspace build requires Docker and Foundry. CLI integration tests may start containers and pull the required images. The filtered CLI build below still builds its `@cartesi/devnet` dependency and therefore also requires Foundry, although it avoids the SDK Docker-image build.
+The complete workspace build requires Docker, which builds the SDK image. CLI integration tests may start containers and pull the required images. The Anvil state used by local environments comes from the pinned [Dave](https://github.com/cartesi/dave) release, so no Foundry installation is needed.
 
 Useful focused commands include:
 
